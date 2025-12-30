@@ -103,7 +103,7 @@
 <body>
 
 <div class="container">
-    <h1>SDC Showdown</h1>
+    <h1>SDC Scavenger</h1>
     
     <div id="screen-login" class="screen active">
         <p>Enter your name to start:</p>
@@ -118,6 +118,21 @@
         <p>- OR -</p>
 
         <button id="create-btn" class="btn btn-outline">Create New Game</button>
+        
+        <div style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 20px;">
+            <a href="#" id="global-link" style="color: var(--primary); font-weight: bold;">🏆 View Global Hall of Fame</a>
+        </div>
+    </div>
+
+    <div id="screen-global" class="screen">
+        <h2>🏆 Hall of Fame</h2>
+        <p>Top Scavengers of All Time</p>
+        
+        <div class="card">
+            <div id="global-list" style="text-align: left;">Loading...</div>
+        </div>
+
+        <button id="back-home-btn" class="btn btn-outline">Back to Home</button>
     </div>
 
     <div id="screen-lobby" class="screen">
@@ -136,12 +151,14 @@
     </div>
 
     <div id="screen-game" class="screen">
-        <div class="card" style="padding: 10px;">
-            <h4 style="margin:0 0 10px 0; text-decoration: underline;">Leaderboard</h4>
-            <div id="leaderboard"></div>
+        <div id="leaderboard-container">
+            <div class="card" style="margin: 0; padding: 10px; border-radius: 0 0 10px 10px; border-top: none;">
+                <h4 style="margin:0 0 5px 0; text-align: center;">🏆 Game Leaders</h4>
+                <div id="leaderboard"></div>
+            </div>
         </div>
 
-        <div class="card">
+        <div class="card" style="margin-top: 20px;">
             <div id="game-status">Mission <span id="mission-count">1</span> of 15</div>
             <div class="task-box">
                 <div id="task-text">Loading...</div>
@@ -149,7 +166,7 @@
             </div>
         </div>
 
-        <button id="found-btn" class="btn btn-green">I FOUND IT! (+10)</button>
+        <button id="found-btn" class="btn btn-green">I FOUND IT!</button>
         <button id="skip-btn" class="btn btn-outline">Skip / New Task</button>
     </div>
 </div>
@@ -158,7 +175,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
    // FIND THIS LINE (around line 125) and ADD runTransaction:
-import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, runTransaction } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, runTransaction, collection, query, orderBy, limit, getDocs, increment } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
     // 1. REPLACE WITH YOUR CONFIG
     const firebaseConfig = {
@@ -415,6 +432,18 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, r
 
             // Success UI Update
             alert(`You earned ${pointsEarned} points!`);
+            // ... inside found-btn listener, after alert() ...
+            
+            // 5. UPDATE GLOBAL STATS (Fire and Forget)
+            const globalRef = doc(db, "global_players", currentUser.uid);
+            // We use setDoc with merge so it creates the doc if it doesn't exist
+            setDoc(globalRef, {
+                name: currentUser.name, // Ensure name is always current
+                score: increment(pointsEarned), // Add points to lifetime total
+                lastPlayed: new Date()
+            }, { merge: true });
+
+            // ... continue with showNextTask() ...
             myCompletedIndices.push(index);
             myScore += pointsEarned; // Local update for speed
             showNextTask();
@@ -459,6 +488,53 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, r
         let result = "";
         for(let i=0; i<length; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
         return result;
+    }
+
+    // --- GLOBAL LEADERBOARD LOGIC ---
+    
+    // 1. Navigation Event Listeners
+    document.getElementById('global-link').addEventListener('click', async (e) => {
+        e.preventDefault();
+        showScreen('global');
+        await loadGlobalLeaderboard();
+    });
+
+    document.getElementById('back-home-btn').addEventListener('click', () => {
+        showScreen('login');
+    });
+
+    // 2. Fetch Function
+    async function loadGlobalLeaderboard() {
+        const listDiv = document.getElementById('global-list');
+        listDiv.innerHTML = "Loading high scores...";
+
+        try {
+            // Query the 'global_players' collection for top 10 scores
+            const q = query(collection(db, "global_players"), orderBy("score", "desc"), limit(10));
+            const querySnapshot = await getDocs(q);
+            
+            if (querySnapshot.empty) {
+                listDiv.innerHTML = "No history yet. Be the first!";
+                return;
+            }
+
+            let html = "";
+            let rank = 1;
+            querySnapshot.forEach((doc) => {
+                const p = doc.data();
+                html += `
+                    <div class="player-row ${rank===1 ? 'leading' : ''}">
+                        <span>#${rank} ${p.name}</span>
+                        <span>${p.score} pts</span>
+                    </div>`;
+                rank++;
+            });
+            listDiv.innerHTML = html;
+
+        } catch (error) {
+            console.error("Global load error:", error);
+            listDiv.innerText = "Error loading scores.";
+        }
     }
 
 </script>
