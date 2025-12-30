@@ -22,10 +22,21 @@
             text-align: center;
         }
 
+        /* NEW LOGO STYLE */
+        .app-logo {
+            max-width: 80%; /* Keeps it from being too wide on desktop */
+            width: 300px;   /* Ideal max width */
+            height: auto;
+            display: block;
+            margin: 0 auto 10px auto; /* Centers it */
+        }
+
         h1 {
             border-bottom: 3px double var(--primary);
             display: inline-block;
-            margin-bottom: 5px;
+            margin-bottom: 15px;
+            margin-top: 5px;
+            font-size: 1.5em;
         }
 
         .container { max-width: 600px; margin: 0 auto; }
@@ -98,11 +109,22 @@
             justify-content: center;
             flex-direction: column;
         }
+        
+        #leaderboard-container {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background-color: var(--bg);
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--primary);
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <img src="sdc2023_sdc_secondary_merch_logo_parksresorts_lightbackground (1).png" alt="Silver Dollar City" class="app-logo">
+    
     <h1>SDC Scavenger</h1>
     
     <div id="screen-login" class="screen active">
@@ -174,17 +196,16 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
-   // FIND THIS LINE (around line 125) and ADD runTransaction:
-import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, runTransaction, collection, query, orderBy, limit, getDocs, increment } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, runTransaction, collection, query, orderBy, limit, getDocs, increment } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
-    // 1. REPLACE WITH YOUR CONFIG
+    // 1. YOUR FIREBASE CONFIG
     const firebaseConfig = {
-  apiKey: "AIzaSyBIRu5NCTpWLmrHyScz2z-rxaDhc8yMmeU",
-  authDomain: "silver-dollar-city-scavenger.firebaseapp.com",
-  projectId: "silver-dollar-city-scavenger",
-  storageBucket: "silver-dollar-city-scavenger.firebasestorage.app",
-  messagingSenderId: "36619829024",
-  appId: "1:36619829024:web:cd1d83cd0944468709e145"
+        apiKey: "AIzaSyBIRu5NCTpWLmrHyScz2z-rxaDhc8yMmeU",
+        authDomain: "silver-dollar-city-scavenger.firebaseapp.com",
+        projectId: "silver-dollar-city-scavenger",
+        storageBucket: "silver-dollar-city-scavenger.firebasestorage.app",
+        messagingSenderId: "36619829024",
+        appId: "1:36619829024:web:cd1d83cd0944468709e145"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -234,12 +255,11 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, r
     let gameTasks = []; // The shared list for this game
 
     // --- DOM ELEMENTS ---
-   // --- DOM ELEMENTS ---
     const screens = {
         login: document.getElementById('screen-login'),
         lobby: document.getElementById('screen-lobby'),
         game: document.getElementById('screen-game'),
-        global: document.getElementById('screen-global') // <--- ADD THIS LINE
+        global: document.getElementById('screen-global')
     };
 
     // --- LOGIN & JOIN LOGIC ---
@@ -271,12 +291,16 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, r
         // 2. Pick 15 random tasks for THIS game so everyone has same list
         const shuffled = [...MASTER_TASKS].sort(() => 0.5 - Math.random());
         const selectedTasks = shuffled.slice(0, 15);
+        
+        // Initialize counts
+        const initialCounts = Array(15).fill(0);
 
         // 3. Create Doc
         await setDoc(doc(db, "games", code), {
             host: currentUser.uid,
             status: "LOBBY",
             tasks: selectedTasks,
+            taskCounts: initialCounts,
             players: {
                 [currentUser.uid]: { name: currentUser.name, score: 0 }
             }
@@ -305,7 +329,6 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, r
     }
 
     // --- REAL-TIME LISTENER ---
-    // --- REAL-TIME LISTENER (FIXED) ---
     function listenToGame(code) {
         onSnapshot(doc(db, "games", code), (docSnap) => {
             const data = docSnap.data();
@@ -315,7 +338,6 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, r
             updatePlayerLists(data.players);
 
             // Handle Game Status Changes
-            // FIX: Check for 'active' class instead of inline style
             if (data.status === "STARTED" && screens.lobby.classList.contains('active')) {
                 gameTasks = data.tasks; // Load the shared tasks
                 startGameUI();
@@ -390,11 +412,11 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, r
         document.getElementById('task-loc').innerText = "📍 " + task.l;
         document.getElementById('mission-count').innerText = myCompletedIndices.length + 1;
         
-        // Ensure buttons are visible (in case they were hidden by a previous game over)
+        // Ensure buttons are visible
         document.getElementById('found-btn').style.display = 'block';
         document.getElementById('skip-btn').style.display = 'block';
         
-        // Store current index in a data attribute for the button
+        // Store current index in a data attribute
         document.getElementById('found-btn').dataset.index = nextTaskIndex;
     }
 
@@ -418,14 +440,9 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, r
                 const data = gameDoc.data();
                 
                 // 1. Get how many people found this specific task before me
-                // (Default to 0 if the field is missing for some reason)
                 const currentCount = (data.taskCounts && data.taskCounts[index]) ? data.taskCounts[index] : 0;
 
-                // 2. Calculate Score:
-                // 0 previous finders = 1st Place = 10 pts
-                // 1 previous finder  = 2nd Place = 9 pts
-                // ...
-                // 9 previous finders = 10th Place = 1 pt
+                // 2. Calculate Score (Race mode: 10, 9, 8...)
                 let points = 10 - currentCount;
                 if (points < 1) points = 1; // Minimum 1 point
                 
@@ -434,8 +451,6 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, r
                 // 3. Update Data in Memory
                 const newScore = (data.players[currentUser.uid].score || 0) + points;
                 
-                // We need to update the specific index in the taskCounts array.
-                // Firestore makes updating one array item hard, so we read the whole array, modify it, and write it back.
                 const newTaskCounts = data.taskCounts || Array(15).fill(0);
                 newTaskCounts[index] = currentCount + 1;
 
@@ -448,20 +463,17 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, r
 
             // Success UI Update
             alert(`You earned ${pointsEarned} points!`);
-            // ... inside found-btn listener, after alert() ...
             
-            // 5. UPDATE GLOBAL STATS (Fire and Forget)
+            // 5. UPDATE GLOBAL STATS
             const globalRef = doc(db, "global_players", currentUser.uid);
-            // We use setDoc with merge so it creates the doc if it doesn't exist
             setDoc(globalRef, {
-                name: currentUser.name, // Ensure name is always current
-                score: increment(pointsEarned), // Add points to lifetime total
+                name: currentUser.name, 
+                score: increment(pointsEarned),
                 lastPlayed: new Date()
             }, { merge: true });
 
-            // ... continue with showNextTask() ...
             myCompletedIndices.push(index);
-            myScore += pointsEarned; // Local update for speed
+            myScore += pointsEarned; 
             showNextTask();
 
         } catch (err) {
@@ -469,18 +481,11 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, r
             alert("Error claiming points. Try again.");
         } finally {
             btn.disabled = false;
-            btn.innerText = "I FOUND IT!"; // Reset text
+            btn.innerText = "I FOUND IT!"; 
         }
     });
 
     document.getElementById('skip-btn').addEventListener('click', () => {
-        // For this version, 'Skip' just moves it to the end of the queue visually
-        // or effectively we just randomize the next pick. 
-        // But since we are iterating 0-15, let's just swap this task with a later one locally? 
-        // Simplest: Just push this index to the end of our local processing or ignore.
-        // Actually, let's just leave it: "Skip" is hard when the list is shared fixed order.
-        // BETTER IDEA: Just load a random one from the remaining available.
-        
         // Re-implement showNextTask to pick RANDOM available
         const available = gameTasks.map((t,i) => i).filter(i => !myCompletedIndices.includes(i));
         if(available.length === 0) return;
@@ -507,8 +512,6 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, r
     }
 
     // --- GLOBAL LEADERBOARD LOGIC ---
-    
-    // 1. Navigation Event Listeners
     document.getElementById('global-link').addEventListener('click', async (e) => {
         e.preventDefault();
         showScreen('global');
@@ -519,13 +522,11 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, r
         showScreen('login');
     });
 
-    // 2. Fetch Function
     async function loadGlobalLeaderboard() {
         const listDiv = document.getElementById('global-list');
         listDiv.innerHTML = "Loading high scores...";
 
         try {
-            // Query the 'global_players' collection for top 10 scores
             const q = query(collection(db, "global_players"), orderBy("score", "desc"), limit(10));
             const querySnapshot = await getDocs(q);
             
