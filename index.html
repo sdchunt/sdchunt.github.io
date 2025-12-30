@@ -234,10 +234,12 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, r
     let gameTasks = []; // The shared list for this game
 
     // --- DOM ELEMENTS ---
+   // --- DOM ELEMENTS ---
     const screens = {
         login: document.getElementById('screen-login'),
         lobby: document.getElementById('screen-lobby'),
-        game: document.getElementById('screen-game')
+        game: document.getElementById('screen-game'),
+        global: document.getElementById('screen-global') // <--- ADD THIS LINE
     };
 
     // --- LOGIN & JOIN LOGIC ---
