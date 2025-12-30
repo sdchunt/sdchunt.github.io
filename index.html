@@ -22,13 +22,13 @@
             text-align: center;
         }
 
-        /* NEW LOGO STYLE */
+        /* LOGO STYLE */
         .app-logo {
-            max-width: 80%; /* Keeps it from being too wide on desktop */
-            width: 300px;   /* Ideal max width */
+            max-width: 80%;
+            width: 300px;
             height: auto;
             display: block;
-            margin: 0 auto 10px auto; /* Centers it */
+            margin: 0 auto 10px auto;
         }
 
         h1 {
@@ -118,15 +118,43 @@
             padding-bottom: 10px;
             border-bottom: 2px solid var(--primary);
         }
+
+        /* --- TOAST NOTIFICATION CSS --- */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: var(--accent); /* Green background */
+            color: #fff;
+            text-align: center;
+            border-radius: 50px; /* Pill shape */
+            padding: 16px;
+            position: fixed;
+            z-index: 1000;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-size: 1.1em;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.3);
+            opacity: 0;
+            transition: opacity 0.5s, bottom 0.5s;
+        }
+
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px; /* Slide up effect */
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <img src="logo.png" alt="Silver Dollar City" class="app-logo">
+    <img src="sdc2023_sdc_secondary_merch_logo_parksresorts_lightbackground (1).png" alt="Silver Dollar City" class="app-logo">
     
     <h1>SDC Scavenger</h1>
     
+    <div id="toast">Points Added!</div>
+
     <div id="screen-login" class="screen active">
         <p>Enter your name to start:</p>
         <input type="text" id="username" placeholder="Your Name (e.g. Outlaw Joe)">
@@ -214,6 +242,7 @@
 
     // --- GAME DATA ---
     const MASTER_TASKS = [
+        // ORIGINAL
         { t: "Selfie with Time Traveler sign", l: "Time Traveler Plaza" },
         { t: "Find a jar of Apple Butter", l: "Homestead Ridge" },
         { t: "Spot the 'Jail' cell", l: "Near Train Depot" },
@@ -244,42 +273,37 @@
         { t: "Giant frying pan sign", l: "Lumbercamp Restaurant" },
         { t: "1880s Schoolhouse desk", l: "The Schoolhouse" },
         { t: "Steam Train water tower", l: "Train Depot" },
-        // --- EXPANSION PACK: FOOD & DRINK ---
-    { t: "Find a Skillet Cookery serving Succotash", l: "Lumbercamp or Buckshot Annie's" },
-    { t: "Spot a funnel cake being poured", l: "Cakes & Cones or Eva & Delilah's" },
-    { t: "Find the 'Fried Fancies' sign", l: "Clara Belle's Cinnamon Bread" },
-    { t: "Locate a bag of Kettle Corn", l: "Dockside Grill / Kettle Corn Stand" },
-    { t: "Find a bottle of Sarsaparilla", l: "General Store / Pop Stand" },
 
-    // --- EXPANSION PACK: RIDES & QUEUES ---
-    { t: "Find the 'Inventors Warehouse' sign", l: "Mystic River Falls Queue" },
-    { t: "Spot the 'Wanted' poster for Alfie Bolin", l: "Fire in the Hole / The City" },
-    { t: "Find the measured height stick for Time Traveler", l: "Time Traveler Entrance" },
-    { t: "Locate the 'Nitro' warning sign", l: "PowderKeg Queue" },
-    { t: "Find the water cannon trigger", l: "Tom & Huck's River Blast" },
-    { t: "Spot the 'Grand Exposition' archway", l: "Grand Exposition Entrance" },
-    { t: "Find the giant swing arm in motion", l: "The Giant Barn Swing" },
-
-    // --- EXPANSION PACK: CRAFTSMEN & SHOPS ---
-    { t: "Watch a potter spinning clay", l: "Hillcreek Pottery" },
-    { t: "Find a hand-carved wooden mantel", l: "Heartland Home Furnishings" },
-    { t: "Spot a leather belt being stamped", l: "Mountain Leather Shop" },
-    { t: "Find a personalized baseball bat", l: "Bat's Blood Ball Park / Woodcarvers" },
-    { t: "Locate the knife making forge", l: "Wilderness Road Blacksmith" },
-    { t: "Find a basket weaver at work", l: "Peter's Woodcarving / Basket Shop" },
-    
-    // --- EXPANSION PACK: LANDMARKS & HIDDEN GEMS ---
-    { t: "Find 'Elsie' the fake milk cow", l: "Midtown / Near result" },
-    { t: "Locate the 'Harvey Water Clock'", l: "Main Square" },
-    { t: "Find the 'Oldest Cabin in the Ozarks'", l: "McHaffie's Homestead" },
-    { t: "Spot the suspension bridge cables", l: "Swinging Bridge" },
-    { t: "Find the church bell rope", l: "Wilderness Church" },
-    { t: "Locate the Schoolhouse playground", l: "Birdle's Cabin / Schoolhouse" },
-    { t: "Find the entrance to the 'Hospitality House'", l: "Main Entrance Square" },
-    { t: "Spot the water wheel on the mill", l: "Sullivan's Mill" },
-    { t: "Find the 'Wilderness Road' street sign", l: "Near Blacksmith" },
-    { t: "Locate the gazebo", l: "Main Square / Gazebo Stage" },
-    { t: "Find the 'Frisco' train logo", l: "Train Depot" }
+        // EXPANSION
+        { t: "Find a Skillet Cookery serving Succotash", l: "Lumbercamp or Buckshot Annie's" },
+        { t: "Spot a funnel cake being poured", l: "Cakes & Cones or Eva & Delilah's" },
+        { t: "Find the 'Fried Fancies' sign", l: "Clara Belle's Cinnamon Bread" },
+        { t: "Locate a bag of Kettle Corn", l: "Dockside Grill / Kettle Corn Stand" },
+        { t: "Find a bottle of Sarsaparilla", l: "General Store / Pop Stand" },
+        { t: "Find the 'Inventors Warehouse' sign", l: "Mystic River Falls Queue" },
+        { t: "Spot the 'Wanted' poster for Alfie Bolin", l: "Fire in the Hole / The City" },
+        { t: "Find the measured height stick for Time Traveler", l: "Time Traveler Entrance" },
+        { t: "Locate the 'Nitro' warning sign", l: "PowderKeg Queue" },
+        { t: "Find the water cannon trigger", l: "Tom & Huck's River Blast" },
+        { t: "Spot the 'Grand Exposition' archway", l: "Grand Exposition Entrance" },
+        { t: "Find the giant swing arm in motion", l: "The Giant Barn Swing" },
+        { t: "Watch a potter spinning clay", l: "Hillcreek Pottery" },
+        { t: "Find a hand-carved wooden mantel", l: "Heartland Home Furnishings" },
+        { t: "Spot a leather belt being stamped", l: "Mountain Leather Shop" },
+        { t: "Find a personalized baseball bat", l: "Bat's Blood Ball Park / Woodcarvers" },
+        { t: "Locate the knife making forge", l: "Wilderness Road Blacksmith" },
+        { t: "Find a basket weaver at work", l: "Peter's Woodcarving / Basket Shop" },
+        { t: "Find 'Elsie' the fake milk cow", l: "Midtown / Near result" },
+        { t: "Locate the 'Harvey Water Clock'", l: "Main Square" },
+        { t: "Find the 'Oldest Cabin in the Ozarks'", l: "McHaffie's Homestead" },
+        { t: "Spot the suspension bridge cables", l: "Swinging Bridge" },
+        { t: "Find the church bell rope", l: "Wilderness Church" },
+        { t: "Locate the Schoolhouse playground", l: "Birdle's Cabin / Schoolhouse" },
+        { t: "Find the entrance to the 'Hospitality House'", l: "Main Entrance Square" },
+        { t: "Spot the water wheel on the mill", l: "Sullivan's Mill" },
+        { t: "Find the 'Wilderness Road' street sign", l: "Near Blacksmith" },
+        { t: "Locate the gazebo", l: "Main Square / Gazebo Stage" },
+        { t: "Find the 'Frisco' train logo", l: "Train Depot" }
     ];
 
     // --- STATE ---
@@ -288,7 +312,7 @@
     let isHost = false;
     let myScore = 0;
     let myCompletedIndices = [];
-    let gameTasks = []; // The shared list for this game
+    let gameTasks = []; 
 
     // --- DOM ELEMENTS ---
     const screens = {
@@ -324,7 +348,7 @@
         currentGameId = code;
         isHost = true;
 
-        // 2. Pick 15 random tasks for THIS game so everyone has same list
+        // 2. Pick 15 random tasks
         const shuffled = [...MASTER_TASKS].sort(() => 0.5 - Math.random());
         const selectedTasks = shuffled.slice(0, 15);
         
@@ -370,12 +394,10 @@
             const data = docSnap.data();
             if(!data) return;
 
-            // Update Player Lists (Lobby & Leaderboard)
             updatePlayerLists(data.players);
 
-            // Handle Game Status Changes
             if (data.status === "STARTED" && screens.lobby.classList.contains('active')) {
-                gameTasks = data.tasks; // Load the shared tasks
+                gameTasks = data.tasks; 
                 startGameUI();
             }
         });
@@ -396,11 +418,9 @@
     }
 
     function updatePlayerLists(playersObj) {
-        // 1. Lobby List
         const lobbyDiv = document.getElementById('lobby-list');
         lobbyDiv.innerHTML = Object.values(playersObj).map(p => `<div>🤠 ${p.name}</div>`).join('');
 
-        // 2. Game Leaderboard (Sorted by Score)
         const sorted = Object.values(playersObj).sort((a,b) => b.score - a.score);
         const boardDiv = document.getElementById('leaderboard');
         boardDiv.innerHTML = sorted.map((p, i) => `
@@ -421,45 +441,36 @@
         showNextTask();
     }
 
-  function showNextTask() {
-        // Find first task index that isn't in myCompletedIndices
+    function showNextTask() {
         const nextTaskIndex = gameTasks.findIndex((_, index) => !myCompletedIndices.includes(index));
 
         if (nextTaskIndex === -1) {
-            // --- GAME OVER STATE ---
+            // GAME OVER
             document.getElementById('task-text').innerText = "ALL MISSIONS COMPLETE!";
-            
-            // Insert the Exit Button into the location text area
             document.getElementById('task-loc').innerHTML = `
                 <p>Check the leaderboard to see who won!</p>
                 <br>
                 <button class="btn btn-outline" onclick="location.reload()">Exit to Home</button>
             `;
-            
-            // Hide the gameplay buttons
             document.getElementById('found-btn').style.display = 'none';
             document.getElementById('skip-btn').style.display = 'none';
             return;
         }
 
-        // --- NORMAL GAMEPLAY STATE ---
         const task = gameTasks[nextTaskIndex];
         document.getElementById('task-text').innerText = task.t;
         document.getElementById('task-loc').innerText = "📍 " + task.l;
         document.getElementById('mission-count').innerText = myCompletedIndices.length + 1;
         
-        // Ensure buttons are visible
         document.getElementById('found-btn').style.display = 'block';
         document.getElementById('skip-btn').style.display = 'block';
         
-        // Store current index in a data attribute
         document.getElementById('found-btn').dataset.index = nextTaskIndex;
     }
 
-   document.getElementById('found-btn').addEventListener('click', async (e) => {
+    document.getElementById('found-btn').addEventListener('click', async (e) => {
         const index = parseInt(e.target.dataset.index);
         
-        // Disable button instantly to prevent double-clicks
         const btn = document.getElementById('found-btn');
         btn.disabled = true;
         btn.innerText = "Verifying...";
@@ -475,32 +486,29 @@
 
                 const data = gameDoc.data();
                 
-                // 1. Get how many people found this specific task before me
                 const currentCount = (data.taskCounts && data.taskCounts[index]) ? data.taskCounts[index] : 0;
 
-                // 2. Calculate Score (Race mode: 10, 9, 8...)
+                // Race mode: 10, 9, 8... min 1
                 let points = 10 - currentCount;
-                if (points < 1) points = 1; // Minimum 1 point
+                if (points < 1) points = 1; 
                 
                 pointsEarned = points;
 
-                // 3. Update Data in Memory
                 const newScore = (data.players[currentUser.uid].score || 0) + points;
                 
                 const newTaskCounts = data.taskCounts || Array(15).fill(0);
                 newTaskCounts[index] = currentCount + 1;
 
-                // 4. Write Updates
                 transaction.update(gameRef, {
                     [`players.${currentUser.uid}.score`]: newScore,
                     taskCounts: newTaskCounts
                 });
             });
 
-            // Success UI Update
-            alert(`You earned ${pointsEarned} points!`);
+            // --- REPLACED ALERT WITH TOAST HERE ---
+            showToast(`You earned ${pointsEarned} points!`);
             
-            // 5. UPDATE GLOBAL STATS
+            // Update Global
             const globalRef = doc(db, "global_players", currentUser.uid);
             setDoc(globalRef, {
                 name: currentUser.name, 
@@ -514,7 +522,7 @@
 
         } catch (err) {
             console.error("Transaction failed: ", err);
-            alert("Error claiming points. Try again.");
+            showToast("Error claiming points. Try again.");
         } finally {
             btn.disabled = false;
             btn.innerText = "I FOUND IT!"; 
@@ -522,7 +530,6 @@
     });
 
     document.getElementById('skip-btn').addEventListener('click', () => {
-        // Re-implement showNextTask to pick RANDOM available
         const available = gameTasks.map((t,i) => i).filter(i => !myCompletedIndices.includes(i));
         if(available.length === 0) return;
         
@@ -545,6 +552,18 @@
         let result = "";
         for(let i=0; i<length; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
         return result;
+    }
+
+    // --- NEW TOAST FUNCTION ---
+    function showToast(message) {
+        const toast = document.getElementById("toast");
+        toast.innerText = message;
+        toast.className = "show";
+        
+        // Hide after 3 seconds
+        setTimeout(function() { 
+            toast.className = toast.className.replace("show", ""); 
+        }, 3000);
     }
 
     // --- GLOBAL LEADERBOARD LOGIC ---
