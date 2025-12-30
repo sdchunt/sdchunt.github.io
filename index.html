@@ -285,6 +285,7 @@
     }
 
     // --- REAL-TIME LISTENER ---
+    // --- REAL-TIME LISTENER (FIXED) ---
     function listenToGame(code) {
         onSnapshot(doc(db, "games", code), (docSnap) => {
             const data = docSnap.data();
@@ -294,7 +295,8 @@
             updatePlayerLists(data.players);
 
             // Handle Game Status Changes
-            if (data.status === "STARTED" && screens.lobby.style.display === "block") {
+            // FIX: Check for 'active' class instead of inline style
+            if (data.status === "STARTED" && screens.lobby.classList.contains('active')) {
                 gameTasks = data.tasks; // Load the shared tasks
                 startGameUI();
             }
