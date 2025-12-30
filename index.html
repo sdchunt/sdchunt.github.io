@@ -363,22 +363,36 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, r
         showNextTask();
     }
 
-    function showNextTask() {
+  function showNextTask() {
         // Find first task index that isn't in myCompletedIndices
         const nextTaskIndex = gameTasks.findIndex((_, index) => !myCompletedIndices.includes(index));
 
         if (nextTaskIndex === -1) {
+            // --- GAME OVER STATE ---
             document.getElementById('task-text').innerText = "ALL MISSIONS COMPLETE!";
-            document.getElementById('task-loc').innerText = "Check the leaderboard to see who won!";
+            
+            // Insert the Exit Button into the location text area
+            document.getElementById('task-loc').innerHTML = `
+                <p>Check the leaderboard to see who won!</p>
+                <br>
+                <button class="btn btn-outline" onclick="location.reload()">Exit to Home</button>
+            `;
+            
+            // Hide the gameplay buttons
             document.getElementById('found-btn').style.display = 'none';
             document.getElementById('skip-btn').style.display = 'none';
             return;
         }
 
+        // --- NORMAL GAMEPLAY STATE ---
         const task = gameTasks[nextTaskIndex];
         document.getElementById('task-text').innerText = task.t;
         document.getElementById('task-loc').innerText = "📍 " + task.l;
         document.getElementById('mission-count').innerText = myCompletedIndices.length + 1;
+        
+        // Ensure buttons are visible (in case they were hidden by a previous game over)
+        document.getElementById('found-btn').style.display = 'block';
+        document.getElementById('skip-btn').style.display = 'block';
         
         // Store current index in a data attribute for the button
         document.getElementById('found-btn').dataset.index = nextTaskIndex;
