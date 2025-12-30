@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDC Scavenger Showdown</title>
+    <style>
+        :root {
+            --primary: #8B4513; /* SaddleBrown */
+            --secondary: #F4A460; /* SandyBrown */
+            --accent: #006400; /* DarkGreen */
+            --bg: #FAF0E6; /* Linen */
+            --text: #2c1a0b;
+        }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            border-bottom: 3px double var(--primary);
+            display: inline-block;
+            margin-bottom: 5px;
+        }
+
+        .container { max-width: 600px; margin: 0 auto; }
+
+        /* SCREENS */
+        .screen { display: none; }
+        .active { display: block; }
+
+        /* CARDS & INPUTS */
+        .card {
+            background: white;
+            border: 2px solid var(--primary);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+            box-shadow: 4px 4px 0px rgba(139, 69, 19, 0.2);
+        }
+
+        input {
+            padding: 10px;
+            font-size: 1.1em;
+            border: 2px solid var(--primary);
+            border-radius: 4px;
+            width: 70%;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            text-align: center;
+            font-family: inherit;
+        }
+
+        /* BUTTONS */
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            font-size: 1.1em;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 5px;
+            font-weight: bold;
+        }
+        .btn-green { background-color: var(--accent); }
+        .btn-outline { background-color: transparent; border: 2px solid var(--primary); color: var(--primary); }
+
+        /* LEADERBOARD */
+        #leaderboard { text-align: left; }
+        .player-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            border-bottom: 1px dashed #ccc;
+        }
+        .player-row.leading { background-color: #fffacd; font-weight: bold; }
+        
+        #room-code-display {
+            font-size: 2.5em;
+            letter-spacing: 5px;
+            font-weight: bold;
+            color: var(--accent);
+            margin: 10px 0;
+        }
+
+        .task-box {
+            min-height: 80px;
+            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>SDC Showdown</h1>
+    
+    <div id="screen-login" class="screen active">
+        <p>Enter your name to start:</p>
+        <input type="text" id="username" placeholder="Your Name (e.g. Outlaw Joe)">
+        
+        <div class="card">
+            <h3>Join Existing Game</h3>
+            <input type="text" id="room-code-input" placeholder="Enter 4-Letter Code" maxlength="4">
+            <button id="join-btn" class="btn">Join Game</button>
+        </div>
+
+        <p>- OR -</p>
+
+        <button id="create-btn" class="btn btn-outline">Create New Game</button>
+    </div>
+
+    <div id="screen-lobby" class="screen">
+        <h3>Waiting for Players...</h3>
+        <p>Share this code with friends:</p>
+        <div id="room-code-display">----</div>
+        <p style="font-size:0.8em">Wait for everyone to join, then click Start.</p>
+        
+        <div class="card">
+            <h4>Who's Here:</h4>
+            <div id="lobby-list"></div>
+        </div>
+
+        <button id="start-game-btn" class="btn btn-green" style="display:none;">START THE HUNT!</button>
+        <p id="waiting-msg" style="display:none;">Waiting for host to start...</p>
+    </div>
+
+    <div id="screen-game" class="screen">
+        <div class="card" style="padding: 10px;">
+            <h4 style="margin:0 0 10px 0; text-decoration: underline;">Leaderboard</h4>
+            <div id="leaderboard"></div>
+        </div>
+
+        <div class="card">
+            <div id="game-status">Mission <span id="mission-count">1</span> of 15</div>
+            <div class="task-box">
+                <div id="task-text">Loading...</div>
+                <div id="task-loc" style="font-size:0.8em; color:#666; margin-top:5px;"></div>
+            </div>
+        </div>
+
+        <button id="found-btn" class="btn btn-green">I FOUND IT! (+10)</button>
+        <button id="skip-btn" class="btn btn-outline">Skip / New Task</button>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+    // 1. REPLACE WITH YOUR CONFIG
+    const firebaseConfig = {
+  apiKey: "AIzaSyBIRu5NCTpWLmrHyScz2z-rxaDhc8yMmeU",
+  authDomain: "silver-dollar-city-scavenger.firebaseapp.com",
+  projectId: "silver-dollar-city-scavenger",
+  storageBucket: "silver-dollar-city-scavenger.firebasestorage.app",
+  messagingSenderId: "36619829024",
+  appId: "1:36619829024:web:cd1d83cd0944468709e145"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // --- GAME DATA ---
+    const MASTER_TASKS = [
+        { t: "Selfie with Time Traveler sign", l: "Time Traveler Plaza" },
+        { t: "Find a jar of Apple Butter", l: "Homestead Ridge" },
+        { t: "Spot the 'Jail' cell", l: "Near Train Depot" },
+        { t: "Eat/Photo Cinnamon Bread", l: "Sullivan's Mill" },
+        { t: "Entrance to Marvel Cave", l: "Hospitality House" },
+        { t: "Watch a glassblower work", l: "Hazel's Glass Factory" },
+        { t: "Find a blacksmith hammering", l: "Wilderness Road" },
+        { t: "Grandfather's Mansion (Tilted)", l: "Midtown" },
+        { t: "Find the giant water clock", l: "Main Square" },
+        { t: "Spot the train robbers", l: "Train Ride" },
+        { t: "Photo of flooded warden", l: "Flooded Mine Queue" },
+        { t: "Find bag of Tater Twists", l: "Tater Twist Stand" },
+        { t: "Giant skillet sign", l: "Buckshot Annie's" },
+        { t: "Wooden rocking chair", l: "Heartland Furnishings" },
+        { t: "Outlaw Run stagecoach", l: "Outlaw Run Plaza" },
+        { t: "Fire in the Hole fire station", l: "The Fire District" },
+        { t: "Spinning Rafts dropping", l: "Mystic River Falls" },
+        { t: "Wilderness Church logs", l: "Wilderness Church" },
+        { t: "Candy maker pulling taffy", l: "Brown's Candy Factory" },
+        { t: "Giant water wheel spinning", l: "Main Entrance" },
+        { t: "Cradle of the City cabin", l: "McHaffie's Homestead" },
+        { t: "Looping track of Wildfire", l: "Wildfire Overlook" },
+        { t: "PowderKeg launch blast", l: "PowderKeg View" },
+        { t: "Candle maker dipping", l: "Toddy's Candle Shop" },
+        { t: "Donkey or barn animal", l: "Petting Zoo" },
+        { t: "Swinging Bridge", l: "Midtown" },
+        { t: "Fresh Pork Rinds sign", l: "Pork Rinds Stand" },
+        { t: "Giant frying pan sign", l: "Lumbercamp Restaurant" },
+        { t: "1880s Schoolhouse desk", l: "The Schoolhouse" },
+        { t: "Steam Train water tower", l: "Train Depot" }
+    ];
+
+    // --- STATE ---
+    let currentUser = null;
+    let currentGameId = null;
+    let isHost = false;
+    let myScore = 0;
+    let myCompletedIndices = [];
+    let gameTasks = []; // The shared list for this game
+
+    // --- DOM ELEMENTS ---
+    const screens = {
+        login: document.getElementById('screen-login'),
+        lobby: document.getElementById('screen-lobby'),
+        game: document.getElementById('screen-game')
+    };
+
+    // --- LOGIN & JOIN LOGIC ---
+    document.getElementById('create-btn').addEventListener('click', async () => {
+        await initUser();
+        createGame();
+    });
+
+    document.getElementById('join-btn').addEventListener('click', async () => {
+        const code = document.getElementById('room-code-input').value.toUpperCase();
+        if(code.length !== 4) return alert("Code must be 4 letters");
+        await initUser();
+        joinGame(code);
+    });
+
+    async function initUser() {
+        const name = document.getElementById('username').value || "Unknown Outlaw";
+        if(!auth.currentUser) await signInAnonymously(auth);
+        currentUser = { uid: auth.currentUser.uid, name: name };
+    }
+
+    // --- GAME CREATION ---
+    async function createGame() {
+        // 1. Generate Room Code
+        const code = generateCode(4);
+        currentGameId = code;
+        isHost = true;
+
+        // 2. Pick 15 random tasks for THIS game so everyone has same list
+        const shuffled = [...MASTER_TASKS].sort(() => 0.5 - Math.random());
+        const selectedTasks = shuffled.slice(0, 15);
+
+        // 3. Create Doc
+        await setDoc(doc(db, "games", code), {
+            host: currentUser.uid,
+            status: "LOBBY",
+            tasks: selectedTasks,
+            players: {
+                [currentUser.uid]: { name: currentUser.name, score: 0 }
+            }
+        });
+
+        setupLobbyUI(code);
+        listenToGame(code);
+    }
+
+    async function joinGame(code) {
+        const gameRef = doc(db, "games", code);
+        const snap = await getDoc(gameRef);
+
+        if(!snap.exists()) return alert("Game not found!");
+        
+        currentGameId = code;
+        isHost = false;
+
+        // Add myself to players
+        const players = snap.data().players;
+        players[currentUser.uid] = { name: currentUser.name, score: 0 };
+        
+        await updateDoc(gameRef, { players: players });
+        setupLobbyUI(code);
+        listenToGame(code);
+    }
+
+    // --- REAL-TIME LISTENER ---
+    function listenToGame(code) {
+        onSnapshot(doc(db, "games", code), (docSnap) => {
+            const data = docSnap.data();
+            if(!data) return;
+
+            // Update Player Lists (Lobby & Leaderboard)
+            updatePlayerLists(data.players);
+
+            // Handle Game Status Changes
+            if (data.status === "STARTED" && screens.lobby.style.display === "block") {
+                gameTasks = data.tasks; // Load the shared tasks
+                startGameUI();
+            }
+        });
+    }
+
+    // --- UI UPDATES ---
+    function setupLobbyUI(code) {
+        showScreen('lobby');
+        document.getElementById('room-code-display').innerText = code;
+        
+        if(isHost) {
+            document.getElementById('start-game-btn').style.display = 'block';
+            document.getElementById('waiting-msg').style.display = 'none';
+        } else {
+            document.getElementById('start-game-btn').style.display = 'none';
+            document.getElementById('waiting-msg').style.display = 'block';
+        }
+    }
+
+    function updatePlayerLists(playersObj) {
+        // 1. Lobby List
+        const lobbyDiv = document.getElementById('lobby-list');
+        lobbyDiv.innerHTML = Object.values(playersObj).map(p => `<div>🤠 ${p.name}</div>`).join('');
+
+        // 2. Game Leaderboard (Sorted by Score)
+        const sorted = Object.values(playersObj).sort((a,b) => b.score - a.score);
+        const boardDiv = document.getElementById('leaderboard');
+        boardDiv.innerHTML = sorted.map((p, i) => `
+            <div class="player-row ${i===0 ? 'leading' : ''}">
+                <span>${i+1}. ${p.name}</span>
+                <span>${p.score} pts</span>
+            </div>
+        `).join('');
+    }
+
+    // --- GAMEPLAY LOGIC ---
+    document.getElementById('start-game-btn').addEventListener('click', async () => {
+        await updateDoc(doc(db, "games", currentGameId), { status: "STARTED" });
+    });
+
+    function startGameUI() {
+        showScreen('game');
+        showNextTask();
+    }
+
+    function showNextTask() {
+        // Find first task index that isn't in myCompletedIndices
+        const nextTaskIndex = gameTasks.findIndex((_, index) => !myCompletedIndices.includes(index));
+
+        if (nextTaskIndex === -1) {
+            document.getElementById('task-text').innerText = "ALL MISSIONS COMPLETE!";
+            document.getElementById('task-loc').innerText = "Check the leaderboard to see who won!";
+            document.getElementById('found-btn').style.display = 'none';
+            document.getElementById('skip-btn').style.display = 'none';
+            return;
+        }
+
+        const task = gameTasks[nextTaskIndex];
+        document.getElementById('task-text').innerText = task.t;
+        document.getElementById('task-loc').innerText = "📍 " + task.l;
+        document.getElementById('mission-count').innerText = myCompletedIndices.length + 1;
+        
+        // Store current index in a data attribute for the button
+        document.getElementById('found-btn').dataset.index = nextTaskIndex;
+    }
+
+    document.getElementById('found-btn').addEventListener('click', async (e) => {
+        const index = parseInt(e.target.dataset.index);
+        myCompletedIndices.push(index);
+        myScore += 10;
+
+        // Update Cloud (This triggers everyone's leaderboard to update)
+        const gameRef = doc(db, "games", currentGameId);
+        // Note: In a real app, use a transaction or dot notation update to avoid overwriting others.
+        // For simplicity here, we read-modify-write inside the player object.
+        // Dot notation is safer:
+        const updateKey = `players.${currentUser.uid}.score`;
+        await updateDoc(gameRef, {
+            [updateKey]: myScore
+        });
+
+        showNextTask();
+    });
+
+    document.getElementById('skip-btn').addEventListener('click', () => {
+        // For this version, 'Skip' just moves it to the end of the queue visually
+        // or effectively we just randomize the next pick. 
+        // But since we are iterating 0-15, let's just swap this task with a later one locally? 
+        // Simplest: Just push this index to the end of our local processing or ignore.
+        // Actually, let's just leave it: "Skip" is hard when the list is shared fixed order.
+        // BETTER IDEA: Just load a random one from the remaining available.
+        
+        // Re-implement showNextTask to pick RANDOM available
+        const available = gameTasks.map((t,i) => i).filter(i => !myCompletedIndices.includes(i));
+        if(available.length === 0) return;
+        
+        const randIndex = available[Math.floor(Math.random() * available.length)];
+        const task = gameTasks[randIndex];
+        
+        document.getElementById('task-text').innerText = task.t;
+        document.getElementById('task-loc').innerText = "📍 " + task.l;
+        document.getElementById('found-btn').dataset.index = randIndex;
+    });
+
+    // --- UTILS ---
+    function showScreen(id) {
+        Object.values(screens).forEach(s => s.classList.remove('active'));
+        screens[id].classList.add('active');
+    }
+
+    function generateCode(length) {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        let result = "";
+        for(let i=0; i<length; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+        return result;
+    }
+
+</script>
+</body>
+</html>
