@@ -157,7 +157,8 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
-    import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+   // FIND THIS LINE (around line 125) and ADD runTransaction:
+import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, runTransaction } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
     // 1. REPLACE WITH YOUR CONFIG
     const firebaseConfig = {
@@ -364,22 +365,67 @@
         document.getElementById('found-btn').dataset.index = nextTaskIndex;
     }
 
-    document.getElementById('found-btn').addEventListener('click', async (e) => {
+   document.getElementById('found-btn').addEventListener('click', async (e) => {
         const index = parseInt(e.target.dataset.index);
-        myCompletedIndices.push(index);
-        myScore += 10;
+        
+        // Disable button instantly to prevent double-clicks
+        const btn = document.getElementById('found-btn');
+        btn.disabled = true;
+        btn.innerText = "Verifying...";
 
-        // Update Cloud (This triggers everyone's leaderboard to update)
         const gameRef = doc(db, "games", currentGameId);
-        // Note: In a real app, use a transaction or dot notation update to avoid overwriting others.
-        // For simplicity here, we read-modify-write inside the player object.
-        // Dot notation is safer:
-        const updateKey = `players.${currentUser.uid}.score`;
-        await updateDoc(gameRef, {
-            [updateKey]: myScore
-        });
 
-        showNextTask();
+        try {
+            let pointsEarned = 0;
+
+            await runTransaction(db, async (transaction) => {
+                const gameDoc = await transaction.get(gameRef);
+                if (!gameDoc.exists()) throw "Game error";
+
+                const data = gameDoc.data();
+                
+                // 1. Get how many people found this specific task before me
+                // (Default to 0 if the field is missing for some reason)
+                const currentCount = (data.taskCounts && data.taskCounts[index]) ? data.taskCounts[index] : 0;
+
+                // 2. Calculate Score:
+                // 0 previous finders = 1st Place = 10 pts
+                // 1 previous finder  = 2nd Place = 9 pts
+                // ...
+                // 9 previous finders = 10th Place = 1 pt
+                let points = 10 - currentCount;
+                if (points < 1) points = 1; // Minimum 1 point
+                
+                pointsEarned = points;
+
+                // 3. Update Data in Memory
+                const newScore = (data.players[currentUser.uid].score || 0) + points;
+                
+                // We need to update the specific index in the taskCounts array.
+                // Firestore makes updating one array item hard, so we read the whole array, modify it, and write it back.
+                const newTaskCounts = data.taskCounts || Array(15).fill(0);
+                newTaskCounts[index] = currentCount + 1;
+
+                // 4. Write Updates
+                transaction.update(gameRef, {
+                    [`players.${currentUser.uid}.score`]: newScore,
+                    taskCounts: newTaskCounts
+                });
+            });
+
+            // Success UI Update
+            alert(`You earned ${pointsEarned} points!`);
+            myCompletedIndices.push(index);
+            myScore += pointsEarned; // Local update for speed
+            showNextTask();
+
+        } catch (err) {
+            console.error("Transaction failed: ", err);
+            alert("Error claiming points. Try again.");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "I FOUND IT!"; // Reset text
+        }
     });
 
     document.getElementById('skip-btn').addEventListener('click', () => {
